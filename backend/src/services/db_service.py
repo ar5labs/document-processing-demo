@@ -6,13 +6,18 @@ from datetime import datetime, timezone
 class DBService:
     def __init__(self, base_dir: str = None):
         if base_dir is None:
-            # Use existing db directory relative to the project root
-            self.base_dir = os.path.join(
-                os.path.dirname(
-                    os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-                ),
-                "db",
-            )
+            # Use db directory - check if we're in Docker container first
+            if os.path.exists("/app"):
+                # In Docker container
+                self.base_dir = "/app/db"
+            else:
+                # Local development
+                self.base_dir = os.path.join(
+                    os.path.dirname(
+                        os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+                    ),
+                    "db",
+                )
         else:
             self.base_dir = base_dir
 
@@ -37,6 +42,7 @@ class DBService:
         upload_record["updated_at"] = now
 
         # Write JSON file
+        os.makedirs(self.base_dir, exist_ok=True)
         json_file_path = os.path.join(self.base_dir, f"{unique_id}.json")
 
         print(json_file_path)

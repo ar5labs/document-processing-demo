@@ -1,13 +1,12 @@
 from celery import Celery
-import os
 
-redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+from src.config.settings import settings
 
 celery_app = Celery(
     "document_processing",
-    broker=redis_url,
-    backend=redis_url,
-    include=["src.worker.tasks"]
+    broker=settings.Redis.url,
+    backend=settings.Redis.url,
+    include=["src.worker.tasks"],
 )
 
 celery_app.conf.update(

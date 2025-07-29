@@ -2,7 +2,8 @@ from botocore.exceptions import ClientError
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.routers import upload
+from src.api.routers.processing import router as processing_router
+from src.api.routers.upload import router as upload_router
 from src.clients.s3_client import get_s3_client
 from src.config.settings import settings
 
@@ -38,7 +39,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(upload.router)
+app.include_router(upload_router)
+app.include_router(processing_router)
 
 
 @app.on_event("startup")

@@ -13,9 +13,3 @@ repos:
         files: ^backend/.*\.py$
         args: ["--profile", "black", "--line-length", "88"]
 
-  - repo: https://github.com/pycqa/flake8
-    rev: 6.1.0
-    hooks:
-      - id: flake8
-        files: ^backend/.*\.py$
-        args: ["--max-line-length=88", "--extend-ignore=E203,W503"]

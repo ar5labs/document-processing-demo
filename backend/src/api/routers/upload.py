@@ -3,8 +3,8 @@ import uuid
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from src.api.services.db_service import DBService, get_db_service
-from src.api.services.s3_service import S3Service, get_s3_service
+from src.services.db_service import DBService, get_db_service
+from src.services.s3_service import S3Service, get_s3_service
 
 router = APIRouter(prefix="/upload", tags=["upload"])
 
@@ -12,6 +12,7 @@ router = APIRouter(prefix="/upload", tags=["upload"])
 class UploadResponse(BaseModel):
     location: str
     key: str
+    entry_id: str
 
 
 @router.post("/", response_model=UploadResponse)
@@ -29,10 +30,10 @@ async def upload_file(
         s3_location = s3_service.upload_file(key, file_content, file.content_type)
 
         # Create entry using DBService
-
         print(f"creating db entry {s3_location}")
         db_service.create_entry(unique_id, key, file.filename, s3_location)
 
-        return UploadResponse(location=s3_location, key=key)
+        return UploadResponse(location=s3_location, key=key, entry_id=unique_id)
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}")
