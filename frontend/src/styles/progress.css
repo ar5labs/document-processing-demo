@@ -1,0 +1,144 @@
+/* Progress Bar Variables */
+:root {
+  --brand-primary: #2196F3;
+  --brand-success: #64DD17;
+  --brand-danger: #ef1c1c;
+  --brand-warning: #FFD600;
+  --brand-info: #29B6F6;
+  --brand-secondary: #323a45;
+  --brand-default: #B0BEC5;
+  --bg-light-gray: #f5f5f5;
+}
+
+/* Progress Container */
+.progress {
+  background-color: var(--bg-light-gray);
+  border-radius: 3px;
+  height: 20px;
+  overflow: hidden;
+  position: relative;
+  margin: 5px 0;
+}
+
+/* Progress Bar Base */
+.progress-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Progress Bar Variants */
+.progress-bar-primary {
+  background-color: var(--brand-primary);
+}
+
+.progress-bar-success {
+  background-color: var(--brand-success);
+}
+
+.progress-bar-danger {
+  background-color: var(--brand-danger);
+}
+
+.progress-bar-warning {
+  background-color: var(--brand-warning);
+}
+
+.progress-bar-info {
+  background-color: var(--brand-info);
+}
+
+.progress-bar-secondary {
+  background-color: var(--brand-secondary);
+}
+
+.progress-bar-default {
+  background-color: var(--brand-default);
+}
+
+/* Striped Pattern */
+.progress-striped .progress-bar,
+.progress-bar-striped {
+  background-image: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.15) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.15) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 40px 40px;
+}
+
+/* Animation for Striped Progress Bars */
+@keyframes progress-bar-stripes {
+  from {
+    background-position: 40px 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+/* Active Animation */
+.progress.active .progress-bar,
+.progress-bar.active {
+  animation: progress-bar-stripes 2s linear infinite;
+}
+
+/* Additional Animation Classes */
+.progress-animated {
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-animated::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* Size Variants */
+.progress-xs {
+  height: 5px;
+}
+
+.progress-sm {
+  height: 10px;
+}
+
+.progress-lg {
+  height: 25px;
+}
+
+.progress-xl {
+  height: 30px;
+}
