@@ -86,6 +86,18 @@ class DBService:
 
         return entries
 
+    def get_entry(self, entry_id: str) -> dict:
+        """Get a single entry by ID"""
+        json_file_path = os.path.join(self.base_dir, f"{entry_id}.json")
+
+        if not os.path.exists(json_file_path):
+            raise FileNotFoundError(f"Entry {entry_id} not found")
+
+        with open(json_file_path, "r") as f:
+            entry_data = json.load(f)
+
+        return entry_data
+
 
 def get_db_service() -> DBService:
     """Dependency injection for DBService"""

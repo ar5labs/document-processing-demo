@@ -1,7 +1,8 @@
+import asyncio
 import io
 import json
-import random
-import time
+import os
+from datetime import datetime, timezone
 
 import numpy as np
 
@@ -29,41 +30,28 @@ class PDFProcessingService:
 
             # Read file bytes from S3
             file_bytes = self.s3_service.read_file(s3_key)
-            self.db_service.update_progress(entry_id, 20, "processing")
 
-            # Initialize PDF chunk loader with specified parameters
+            # Initialize PDF chunk loader
             pdf_loader = PdfChunkDocumentLoader(chunk_size=25000, overlap=500)
-            self.db_service.update_progress(entry_id, 40, "processing")
 
             # Extract chunks from PDF
             chunks = pdf_loader.extract_chunks(io_stream=file_bytes)
-            self.db_service.update_progress(entry_id, 60, "processing")
 
-            # Initialize progress tracking dictionary
+            # Initialize progress tracking
             self.chunk_progress = {i: 0 for i in range(len(chunks))}
 
-            # Process each chunk with summary service
-            processed_chunks = []
-            for i, chunk in enumerate(chunks):
-                processed_chunk = self.process_chunk(chunk, i)
-                processed_chunks.append(processed_chunk)
+            # ---- Run chunk processing asynchronously ----
+            processed_chunks = asyncio.run(self._process_all_chunks(entry_id, chunks))
 
-                # Update overall progress based on processed chunks
-                progress_mean = self.get_chunk_progress()
-                overall_progress = min(round(progress_mean * 100, 1), 99)
-                self.db_service.update_progress(
-                    entry_id, int(overall_progress), "processing"
-                )
+            # Get final document summary from all processed chunks
+            final_summary = self.summary_service.get_final_summary(processed_chunks)
+            print(f"Generated final summary: {final_summary}")
 
-            # Convert chunks to JSON using model.dump() and store in database
-            chunks_json = [chunk.model_dump() for chunk in processed_chunks]
-
-            print(chunks_json)
-
-            # Store chunks in database by updating the entry
-            self._store_chunks(entry_id, chunks_json)
+            # Store processed chunks in the database
+            self._store_chunks(entry_id, processed_chunks, final_summary)
             print(f"Extracted and processed {len(chunks)} chunks from PDF")
 
+            # Update final status
             self.db_service.update_progress(entry_id, 100, "completed")
 
             return {
@@ -83,26 +71,43 @@ class PDFProcessingService:
                 "error": str(e),
             }
 
-    def process_chunk(self, chunk, index: int):
-        """Process a single chunk using summary service and update progress"""
-        # Get chunk summary from summary service
-        summary_result = self.summary_service.get_chunk_summary(
-            chunk.start_page, chunk.end_page, chunk.text
-        )
+    async def _process_all_chunks(self, entry_id: str, chunks: list):
+        """Process all PDF chunks concurrently (max 5 at a time)."""
+        semaphore = asyncio.Semaphore(10)
 
-        # Add summary data to chunk
-        chunk_dict = chunk.model_dump()
-        chunk_dict["summary"] = summary_result
+        async def process_with_progress_update(chunk, index):
+            async with semaphore:
+                # Run the blocking summary call in a thread
+                summary_result = await asyncio.to_thread(
+                    self.summary_service.get_chunk_summary,
+                    chunk.start_page,
+                    chunk.end_page,
+                    chunk.content,
+                )
 
-        # Mark this chunk as processed (change from 0 to 1)
-        self.chunk_progress[index] = 1
+                # Add summary to chunk
+                chunk_dict = chunk.model_dump()
+                chunk_dict["summary"] = summary_result
 
-        # Convert back to chunk object with summary
-        from src.services.loaders.pdf_loader import ChunkDocument
+                # Mark chunk as processed
+                self.chunk_progress[index] = 1
 
-        processed_chunk = ChunkDocument(**chunk_dict)
+                # Update overall progress
+                progress_mean = self.get_chunk_progress()
+                overall_progress = min(round(progress_mean * 100, 1), 99)
+                self.db_service.update_progress(
+                    entry_id, int(overall_progress), "processing"
+                )
 
-        return processed_chunk
+                print(f"Completed chunk {index}, progress: {overall_progress}%")
+                return chunk_dict
+
+        # Launch tasks for all chunks
+        tasks = [
+            asyncio.create_task(process_with_progress_update(chunk, i))
+            for i, chunk in enumerate(chunks)
+        ]
+        return await asyncio.gather(*tasks)
 
     def get_chunk_progress(self) -> float:
         """Get the mean progress of all chunks using numpy"""
@@ -110,23 +115,26 @@ class PDFProcessingService:
             return 0.0
         return np.mean(list(self.chunk_progress.values()))
 
-    def _store_chunks(self, entry_id: str, chunks_json: list):
-        """Store PDF chunks in the database by updating the entry"""
-        import os
-
+    def _store_chunks(
+        self, entry_id: str, chunks_json: list, final_summary: dict = None
+    ):
+        """Store PDF chunks and final summary in the database by updating the entry"""
         json_file_path = os.path.join(self.db_service.base_dir, f"{entry_id}.json")
 
         if not os.path.exists(json_file_path):
             raise FileNotFoundError(f"Entry {entry_id} not found")
 
-        # Read existing data
+        # Read existing entry
         with open(json_file_path, "r") as f:
             entry_data = json.load(f)
 
-        # Add chunks data
+        # Add chunks, final summary & update timestamp
         entry_data["chunks"] = chunks_json
-        from datetime import datetime, timezone
-
+        if final_summary:
+            entry_data["final_summary"] = final_summary
+            # Extract and store primary topics as key terms for easier access
+            if "primary_topics" in final_summary:
+                entry_data["key_terms"] = final_summary["primary_topics"]
         entry_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         # Write back to file

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -30,6 +30,11 @@ class JobStatus(BaseModel):
     processing_job: Optional[str] = None
     created_at: str
     updated_at: str
+
+
+class DocumentSummaryResponse(BaseModel):
+    document_summary: str
+    primary_topics: List[str]
 
 
 @router.post("/submit-job", response_model=ProcessingResponse)
@@ -67,4 +72,50 @@ async def get_job_status(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to get job status: {str(e)}"
+        )
+
+
+@router.get("/summary/{entry_id}", response_model=DocumentSummaryResponse)
+async def get_document_summary(
+    entry_id: str, db_service: DBService = Depends(get_db_service)
+):
+    """Get the final summary of a processed document"""
+    try:
+        # Get the entry from the database
+        entry = db_service.get_entry(entry_id)
+
+        # Check if the document has been processed
+        if entry.get("status") != "completed":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Document {entry_id} is not yet fully processed. Current status: {entry.get('status')}",
+            )
+
+        # Check if final_summary exists
+        final_summary = entry.get("final_summary")
+        if not final_summary:
+            raise HTTPException(
+                status_code=404, detail=f"No summary found for document {entry_id}"
+            )
+
+        # Extract document_summary and primary_topics
+        document_summary = final_summary.get("document_summary", "")
+        primary_topics = final_summary.get("primary_topics", [])
+
+        if not document_summary:
+            raise HTTPException(
+                status_code=404, detail=f"Document summary not found for {entry_id}"
+            )
+
+        return DocumentSummaryResponse(
+            document_summary=document_summary, primary_topics=primary_topics
+        )
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Document {entry_id} not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get document summary: {str(e)}"
         )

@@ -4,7 +4,10 @@ import instructor
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
-from backend.src.prompts.system_prompts import DOCUMENT_CHUNK_SYSTEM_PROMPT
+from src.prompts.system_prompts import (
+    DOCUMENT_CHUNK_SYSTEM_PROMPT,
+    DOCUMENT_SUMMARY_SYSTEM_PROMPT,
+)
 
 
 class ChunkAnalysis(BaseModel):
@@ -41,12 +44,22 @@ class ChunkAnalysis(BaseModel):
     )
 
 
+class DocumentSummary(BaseModel):
+    document_summary: str = Field(
+        ..., description="Professional summary of the content"
+    )
+    primary_topics: List[str] = Field(
+        default_factory=list,
+        description="Main topics and themes that span across the document",
+    )
+
+
 class SummaryService:
     def __init__(self):
         self.client = instructor.from_openai(OpenAI())
 
     def get_chunk_summary(self, start_page, end_page, chunk_content):
-        response = self.client.chat.completion.create(
+        response = self.client.chat.completions.create(
             model="gpt-4o-mini",
             response_model=ChunkAnalysis,
             messages=[
@@ -58,7 +71,23 @@ class SummaryService:
             ],
         )
 
+        print(response)
+
         return response.model_dump()
 
-    def get_final_summary(self, chunk_):
-        pass
+    def get_final_summary(self, chunks):
+        response = self.client.chat.completions.create(
+            model="gpt-4o-mini",
+            response_model=DocumentSummary,
+            messages=[
+                {"role": "system", "content": DOCUMENT_SUMMARY_SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": ", ".join([str(chunk) for chunk in chunks]),
+                },
+            ],
+        )
+
+        print(response)
+
+        return response.model_dump()
