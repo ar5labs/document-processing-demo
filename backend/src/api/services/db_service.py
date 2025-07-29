@@ -6,18 +6,15 @@ from datetime import datetime, timezone
 class DBService:
     def __init__(self, base_dir: str = None):
         if base_dir is None:
-            # Default to uploads directory relative to the project root
+            # Use existing db directory relative to the project root
             self.base_dir = os.path.join(
                 os.path.dirname(
                     os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
                 ),
-                "uploads",
+                "db",
             )
         else:
             self.base_dir = base_dir
-
-        # Ensure the directory exists
-        os.makedirs(self.base_dir, exist_ok=True)
 
     def create_entry(
         self, unique_id: str, key: str, filename: str, location: str
@@ -41,6 +38,8 @@ class DBService:
 
         # Write JSON file
         json_file_path = os.path.join(self.base_dir, f"{unique_id}.json")
+
+        print(json_file_path)
         with open(json_file_path, "w") as f:
             json.dump(upload_record, f, indent=2)
 
