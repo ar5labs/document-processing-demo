@@ -165,3 +165,6 @@ Desktop.ini
 uploads/
 static/files/
 media/
+
+# Backend database folder
+backend/db/
