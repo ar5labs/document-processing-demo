@@ -139,6 +139,7 @@ build/
 # Docker
 *.log
 docker-compose.override.yml
+backend/docker-compose.dev.yml
 
 # Database
 *.db
