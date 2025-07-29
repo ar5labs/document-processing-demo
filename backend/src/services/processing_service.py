@@ -3,7 +3,10 @@ import json
 import random
 import time
 
+import numpy as np
+
 from src.services.db_service import DBService
+from src.services.gen_ai.summary_service import SummaryService
 from src.services.loaders.pdf_loader import PdfChunkDocumentLoader
 from src.services.s3_service import get_s3_service
 
@@ -12,6 +15,8 @@ class PDFProcessingService:
     def __init__(self, db_service: DBService):
         self.db_service = db_service
         self.s3_service = get_s3_service()
+        self.summary_service = SummaryService()
+        self.chunk_progress = {}
 
     def process_document(self, entry_id: str, s3_location: str):
         """Process PDF document by extracting chunks and storing in database"""
@@ -32,16 +37,32 @@ class PDFProcessingService:
 
             # Extract chunks from PDF
             chunks = pdf_loader.extract_chunks(io_stream=file_bytes)
-            self.db_service.update_progress(entry_id, 80, "processing")
+            self.db_service.update_progress(entry_id, 60, "processing")
+
+            # Initialize progress tracking dictionary
+            self.chunk_progress = {i: 0 for i in range(len(chunks))}
+
+            # Process each chunk with summary service
+            processed_chunks = []
+            for i, chunk in enumerate(chunks):
+                processed_chunk = self.process_chunk(chunk, i)
+                processed_chunks.append(processed_chunk)
+
+                # Update overall progress based on processed chunks
+                progress_mean = self.get_chunk_progress()
+                overall_progress = min(round(progress_mean * 100, 1), 99)
+                self.db_service.update_progress(
+                    entry_id, int(overall_progress), "processing"
+                )
 
             # Convert chunks to JSON using model.dump() and store in database
-            chunks_json = [chunk.model_dump() for chunk in chunks]
+            chunks_json = [chunk.model_dump() for chunk in processed_chunks]
 
             print(chunks_json)
 
             # Store chunks in database by updating the entry
             self._store_chunks(entry_id, chunks_json)
-            print(f"Extracted {len(chunks)} chunks from PDF")
+            print(f"Extracted and processed {len(chunks)} chunks from PDF")
 
             self.db_service.update_progress(entry_id, 100, "completed")
 
@@ -49,7 +70,7 @@ class PDFProcessingService:
                 "entry_id": entry_id,
                 "s3_location": s3_location,
                 "status": "completed",
-                "chunks_count": len(chunks),
+                "chunks_count": len(processed_chunks),
             }
 
         except Exception as e:
@@ -61,6 +82,33 @@ class PDFProcessingService:
                 "status": "failed",
                 "error": str(e),
             }
+
+    def process_chunk(self, chunk, index: int):
+        """Process a single chunk using summary service and update progress"""
+        # Get chunk summary from summary service
+        summary_result = self.summary_service.get_chunk_summary(
+            chunk.start_page, chunk.end_page, chunk.text
+        )
+
+        # Add summary data to chunk
+        chunk_dict = chunk.model_dump()
+        chunk_dict["summary"] = summary_result
+
+        # Mark this chunk as processed (change from 0 to 1)
+        self.chunk_progress[index] = 1
+
+        # Convert back to chunk object with summary
+        from src.services.loaders.pdf_loader import ChunkDocument
+
+        processed_chunk = ChunkDocument(**chunk_dict)
+
+        return processed_chunk
+
+    def get_chunk_progress(self) -> float:
+        """Get the mean progress of all chunks using numpy"""
+        if not self.chunk_progress:
+            return 0.0
+        return np.mean(list(self.chunk_progress.values()))
 
     def _store_chunks(self, entry_id: str, chunks_json: list):
         """Store PDF chunks in the database by updating the entry"""

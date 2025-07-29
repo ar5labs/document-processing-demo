@@ -59,3 +59,6 @@ class SummaryService:
         )
 
         return response.model_dump()
+
+    def get_final_summary(self, chunk_):
+        pass
