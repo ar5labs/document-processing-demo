@@ -77,7 +77,7 @@ class SummaryService:
 
     def get_final_summary(self, chunks):
         response = self.client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4.1-mini",
             response_model=DocumentSummary,
             messages=[
                 {"role": "system", "content": DOCUMENT_SUMMARY_SYSTEM_PROMPT},

@@ -1,11 +1,11 @@
 # Document Processing Demo
 
-A full-stack document processing application that uses AI to analyze Word documents, extract semantic information, and generate comprehensive summaries. The system processes documents through intelligent chunking, semantic analysis, and produces structured metadata for enhanced retrieval and understanding.
+A full-stack document processing application that uses AI to analyze PDF documents, extract semantic information, and generate comprehensive summaries. The system processes documents through intelligent chunking, semantic analysis, and produces structured metadata for enhanced retrieval and understanding.
 
 ## Overview
 
 This application provides:
-- Word document upload and storage using AWS S3 (or LocalStack for development)
+- PDF document upload and storage using AWS S3 (or LocalStack for development)
 - Asynchronous document processing with Celery workers
 - AI-powered semantic analysis and summarization using OpenAI
 - Real-time processing status updates
@@ -35,7 +35,7 @@ The backend follows a microservices architecture with the following components:
 
 ### Processing Pipeline
 
-1. **Document Upload**: Word files are uploaded to S3 and metadata is stored
+1. **Document Upload**: PDF files are uploaded to S3 and metadata is stored
 2. **Chunk Extraction**: Documents are split into manageable chunks using configurable size and overlap
 3. **Semantic Analysis**: Each chunk is processed to extract:
    - Topics and themes
@@ -54,7 +54,7 @@ The backend follows a microservices architecture with the following components:
 - **Redis**: In-memory data store used as message broker
 - **AWS S3/LocalStack**: Object storage for documents
 - **OpenAI API**: Powers the AI analysis and summarization
-- **python-docx**: Word document text extraction
+- **PyPDF2/pdfplumber**: PDF document text extraction
 - **LangChain**: Text splitting and document processing utilities
 
 ## System Prompts
@@ -138,7 +138,7 @@ The frontend will be available at http://localhost:3000
 
 ## API Endpoints
 
-- `POST /upload/`: Upload a Word document
+- `POST /upload/`: Upload a PDF document
 - `POST /processing/submit-job`: Submit a processing job
 - `GET /processing/status/{entry_id}`: Get job status
 - `GET /processing/summary/{entry_id}`: Get document summary
@@ -165,7 +165,7 @@ The frontend will be available at http://localhost:3000
 ## Document Format Support
 
 Currently supports:
-- Word documents (.docx)
+- PDF documents (.pdf)
 
 ## Architecture Decisions
 
@@ -177,7 +177,7 @@ Currently supports:
 
 ## Future Enhancements
 
-- Support for additional document formats (PDF, Excel, etc.)
+- Support for additional document formats (Word, Excel, etc.)
 - PostgreSQL or MongoDB for production data storage
 - Enhanced authentication and authorization
 - Batch processing capabilities
