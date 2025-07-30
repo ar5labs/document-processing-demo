@@ -36,41 +36,6 @@ class CallbackTask(Task):
             )
 
 
-@celery_app.task(bind=True, base=CallbackTask, name="process_document")
-def process_document(self, job_id: str, file_path: str):
-    from ..api.models import JobStatus, update_job
-
-    # Update progress to 25%
-    update_job(
-        job_id, processing_progress=25, status_message="Extracting text from document"
-    )
-    time.sleep(2)
-
-    # Update progress to 50%
-    update_job(
-        job_id, processing_progress=50, status_message="Analyzing document structure"
-    )
-    time.sleep(2)
-
-    # Update progress to 75%
-    update_job(
-        job_id, processing_progress=75, status_message="Generating document summary"
-    )
-    time.sleep(2)
-
-    # Final update happens in on_success callback
-    return {
-        "job_id": job_id,
-        "status": "completed",
-        "result": "Document processed successfully",
-    }
-
-
-@celery_app.task(name="extract_text")
-def extract_text(file_path: str):
-    return {"file_path": file_path, "text": "Extracted text placeholder", "pages": 1}
-
-
 @celery_app.task(name="process_document_task")
 def process_document_task(entry_id: str, s3_location: str):
     """Celery task that processes a document using the PDFProcessingService"""
